@@ -1,6 +1,6 @@
 ﻿namespace Fable
 
-
+open System
 open System.Text.RegularExpressions
 
 module UserAgentParser =
@@ -32,7 +32,9 @@ module UserAgentParser =
             if m.Success then 
                 let values = List.tail [ for g in m.Groups -> g.Value ] // skip first one
                 match values with
-                | name::version::_ -> Some {empty with name = Some name ; version= Some version }
+                | name::version::_ ->
+                    if String.IsNullOrEmpty(version) then Some {empty with name = Some name ; version= None }
+                    else Some {empty with name = Some name ; version= Some version }
                 | name::_ -> Some {empty with name = Some name ; version= None }
                 | _ -> Some empty
             else None
@@ -42,7 +44,21 @@ module UserAgentParser =
             if m.Success then 
                 let values = List.tail [ for g in m.Groups -> g.Value ] // skip first one
                 match values with
-                | version::_ -> Some {empty with version= Some version }
+                | version::_ -> 
+                    if String.IsNullOrEmpty(version) then Some empty
+                    else Some {empty with version= Some version }
+                | _ -> Some empty
+            else None
+
+        let (|BrowserVersionName|_|) pattern input =
+            let m = Regex.Match(input, pattern, RegexOptions.IgnoreCase)
+            if m.Success then 
+                let values = List.tail [ for g in m.Groups -> g.Value ] // skip first one
+                match values with
+                | version::name::_ ->
+                    if String.IsNullOrEmpty(version) then Some {empty with name = Some name ; version= None }
+                    else Some {empty with name = Some name ; version= Some version }
+                | name::_ -> Some {empty with name = Some name ; version= None }
                 | _ -> Some empty
             else None
 
@@ -50,13 +66,13 @@ module UserAgentParser =
         let (|OldSafariVersion|) browser =
             match browser.version with
             | None -> browser
-            |  Some "/8" -> browser |> withVersion "1.0"
-            |  Some "/1" -> browser |> withVersion "1.2"
-            |  Some "/3" -> browser |> withVersion "1.3"
-            |  Some "/412" -> browser |> withVersion "2.0"
-            |  Some "/416" -> browser |> withVersion "2.0.2"
-            |  Some "/417" -> browser |> withVersion "2.0.3"
-            |  Some "/419" -> browser |> withVersion "2.0.4"
+            |  Some v when v.StartsWith "/8" -> browser |> withVersion "1.0"
+            |  Some v when v.StartsWith "/1" -> browser |> withVersion "1.2"
+            |  Some v when v.StartsWith "/3" -> browser |> withVersion "1.3"
+            |  Some v when v.StartsWith "/412" -> browser |> withVersion "2.0"
+            |  Some v when v.StartsWith "/416" -> browser |> withVersion "2.0.2"
+            |  Some v when v.StartsWith "/417" -> browser |> withVersion "2.0.3"
+            |  Some v when v.StartsWith "/419" -> browser |> withVersion "2.0.4"
             | _ -> browser
 
 
@@ -150,7 +166,7 @@ module UserAgentParser =
               
             | BrowserVersion "version\/([\w\.]+).+?mobile\/\w+\s(safari)" b -> b |> withName "Mobile Safari"                      // Mobile Safari
              
-            | BrowserVersion "version\/([\w\.]+).+?(mobile\s?safari|safari)" b -> b                  // Safari & Safari Mobile
+            | BrowserVersionName "version\/([\w\.]+).+?(mobile\s?safari|safari)" b -> b                  // Safari & Safari Mobile
               
             | BrowserNameVersion "webkit.+?(gsa)\/([\w\.]+).+?(mobile\s?safari|safari)(\/[\w\.]+)" b -> b |> withName "GSA"  // Google Search Appliance on iOS
              

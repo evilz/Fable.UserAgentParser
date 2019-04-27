@@ -4,6 +4,7 @@
     <TargetFramework>netcoreapp2.1</TargetFramework>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="BrowserTests.fs" />
     <Compile Include="Test.fs" />
   </ItemGroup>
   <ItemGroup>
