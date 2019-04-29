@@ -37,3 +37,12 @@ browsers |> List.iteri ( fun i b ->
             )
     //) 
 
+
+CpuList |> List.iteri ( fun i c ->
+            test(sprintf "%s %A %i" c.desc c.expect.architecture i  , fun t-> 
+                c.ua 
+                |> Cpu.parse
+                |> t.deepEqual c.expect
+                )
+            )
+

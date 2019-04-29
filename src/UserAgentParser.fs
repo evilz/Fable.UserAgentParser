@@ -2,6 +2,7 @@
 
 open System
 open System.Text.RegularExpressions
+open System.Runtime.InteropServices
 
 module UserAgentParser =
 
@@ -11,8 +12,7 @@ module UserAgentParser =
         if m.Success then Some(List.tail [ for g in m.Groups -> g.Value ])
         else None
 
-    type CPU = { identifier: string option}
-
+    
     type Browser = {name: string option ; version: string option}
 
 
@@ -194,38 +194,43 @@ module UserAgentParser =
             | BrowserNameVersion "(mosaic)[\/\s]([\w\.]+)" b -> b                                        // Mosaic
             | _ -> {name = None; version = None}
 
+    type Cpu = { architecture: string option}
+
+    module Cpu =
+
+        let parse input = 
+            match input with
+            | Regex "(?:(amd|x(?:(?:86|64)[_-])?|wow|win)64)[;\)]" x -> {architecture = Some "amd64"}                    // AMD64
+            | Regex "(ia32(?=;))" x -> {architecture =  x.Head |> fun s -> s.ToLowerInvariant() |> Some }                    // IA32 (quicktime)
+            | Regex "((?:i[346]|x)86)[;\)]" x -> {architecture = Some "ia32"}                // IA32
+            | Regex "windows\s(ce|mobile);\sppc" x -> {architecture = Some "arm"}     // PocketPC mistakenly identified as PowerPC
+            
+            // [[ARCHITECTURE, /ower/, '', util.lowerize]],
+            | Regex "((?:ppc|powerpc)(?:64)?)(?:\smac|;|\))" x -> {architecture = Some "ppc" }  // PowerPC
+            | Regex "(sun4\w)[;\)]" x -> {architecture = Some "sparc"} // SPARC
+            | Regex "((?:avr32|ia64(?=;))|68k(?=\))|arm(?:64|(?=v\d+[;l]))|(?=atmel\s)avr|(?:irix|mips|sparc)(?:64)?(?=;)|pa-risc)" x -> {architecture = x.Head |> fun s -> s.ToLowerInvariant() |> Some } // IA64, 68K, ARM/64, AVR/32, IRIX/64, MIPS/64, SPARC/64, PA-RISC
+            | _ -> {architecture = None}
 
 
     type Device = { vendor: string option; ``type``: string option; model: string option }
 
     type OS = { version: string option; name: string option }
 
-
-    /// Available keys
-    ///
-    /// - model: model of the device
-    /// - name: name (multiple uses)
-    /// - vendor: vendor of the device
-    /// - type: type (multiple uses)
-    /// - version: version (multiple uses)
-    /// - arch: architecture of the device
-    type Key =
-        | Model
-        | Name
-        | Vendor
-        | Type
-        | Version
-        | Arch
-
-    type MapValue =
-        | MatchToKey of key:Key //matched substring to given key
-        | FixedValueToKey of key:Key * value: string
-        | MatchedThenRexex of key: Key * toto:string * titi: string
-        | ValueToMap of key:Key * mappedKeys: string
-
-
     type UserAgentData = {
         agent: string
         browser: Browser
+        //engine: Engine
+        //os: OS
+        //device: Device
+        cpu: Cpu
     }
 
+    let parse input =
+        let browser = Browser.parse input
+        let cpu = Cpu.parse input
+
+        {
+            agent = input
+            browser = browser
+            cpu = cpu
+        }
